@@ -141,7 +141,9 @@ if page == "Home":
         series_list = fetch_series(limit=200)
         series_names = {str(s.get("id")): s.get("name") for s in series_list}
         sel = st.selectbox("Series", options=list(series_names.keys()), format_func=lambda x: series_names[x])
-        dt = st.datetime_input("Date & time", value=datetime.now())
+        date = st.date_input("Date", value=datetime.now().date())
+        time = st.time_input("Time", value=datetime.now().time())
+        dt = datetime.combine(date, time)
         platform = st.text_input("Platform (e.g. Netflix)")
         invited = st.text_input("Invite participants (comma separated user_id)")
         if st.button("Create"):
@@ -235,7 +237,9 @@ if page == "Watch Parties":
     all_series = fetch_series(limit=200)
     series_map = {str(s.get("id")): s.get("name") for s in all_series}
     sel_series = st.selectbox("Series", options=list(series_map.keys()), format_func=lambda x: series_map[x])
-    host_dt = st.datetime_input("Date & time", value=datetime.now())
+    date = st.date_input("Date", value=datetime.now().date())
+    time = st.time_input("Time", value=datetime.now().time())
+    host_dt = datetime.combine(date, time)
     platform = st.text_input("Platform")
     participants_input = st.text_input("Invite participants (comma sep user_id)")
     if st.button("Create watch party (full form)"):
