@@ -341,8 +341,8 @@ users = fetch_users()
 user = next((u for u in users if u.get("user_id") == DEFAULT_USER_ID), None)
 
 watchparties = fetch_watchparties()
-watchlist_ratings = supabase.table("ratings").select("series_id").eq("user_id", DEFAULT_USER_ID).eq("status","watchlist").execute().data or []
-watchlist_ids = [r["series_id"] for r in watchlist_ratings]
+watchlist_ratings = supabase.table("ratings").select("id").eq("user_id", DEFAULT_USER_ID).eq("status","watchlist").execute().data or []
+watchlist_ids = [r["id"] for r in watchlist_ratings]
 watchlist_series = [fetch_series_by_id(sid) for sid in watchlist_ids]
 
 # ----------------------------
@@ -354,7 +354,7 @@ if watchparties:
     cols = st.columns(min(5, len(watchparties)))  # max 5 cards visible
     for i, wp in enumerate(watchparties):
         c = cols[i % len(cols)]
-        series_obj = fetch_series_by_id(wp.get("series_id"))
+        series_obj = fetch_series_by_id(wp.get("id"))
         with c:
             if st.button(f"{series_obj.get('name','—')} ({wp.get('host')})", key=f"wp_{wp.get('id')}"):
                 # open modal
@@ -386,7 +386,7 @@ if watchlist_series:
                     st.markdown(f"**Year:** {s.get('year')}")
                     st.markdown(f"**Episodes:** {s.get('episodes') or '-'}")
                     # plataformas
-                    platforms_res = supabase.table("series_platform").select("platform").eq("series_id", s.get("id")).execute()
+                    platforms_res = supabase.table("series_platform").select("platform").eq("id", s.get("id")).execute()
                     platforms = [r["platform"] for r in (platforms_res.data or [])]
                     st.markdown(f"**Platforms:** {', '.join(platforms) or '-'}")
                     st.button("Mark as watched", key=f"mark_watched_{s.get('id')}")
