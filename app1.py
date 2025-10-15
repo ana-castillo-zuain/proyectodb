@@ -332,16 +332,22 @@
 #         s = fetch_series_by_id(r.get("id"))
 #         st.write(f"- {s.get('name')} — {r.get('stars') or '-'} ★ — {r.get('review') or ''}")
 import streamlit as st
-from supabase import create_client
+import os
+from supabase import create_client, Client
 import json
 
 # -----------------------
 # Config Supabase
 # -----------------------
-SUPABASE_URL = "TU_SUPABASE_URL"
-SUPABASE_KEY = "TU_SUPABASE_KEY"
-DEFAULT_USER_ID = "user_1"
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+DEFAULT_USER_ID = os.environ.get("DEFAULT_USER_ID", "user_1")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+     st.error("Set SUPABASE_URL and SUPABASE_KEY as environment variables.")
+     st.stop()
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -----------------------
 # Helpers
