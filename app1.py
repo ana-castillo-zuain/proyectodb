@@ -360,8 +360,8 @@ def fetch_watchparties(limit=10):
     resp = supabase.table("watchparties").select("*").limit(limit).execute()
     return resp.data or []
 
-def fetch_ratings_for_series(series_id):
-    resp = supabase.table("ratings").select("*").eq("series_id", series_id).execute()
+def fetch_ratings_for_series(id):
+    resp = supabase.table("ratings").select("*").eq("id", id).execute()
     return resp.data or []
 
 def fetch_participants_for_watchparty(watchparty_id):
