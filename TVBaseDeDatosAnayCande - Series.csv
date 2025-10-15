@@ -1,0 +1,16 @@
+id,name,genre,year,rating,episodes,platform
+1,How I Met Your Mother,Sitcom,2005,8.3,208,Disney+
+2,Suits ,Drama,2011,8.4,134,Netflix
+3,The Big Bang Theory ,Sitcom,2007,8.1,279,HBO Max
+4,New Girl ,Sitcom ,2011,7.8,146,Disney+
+5,Brooklyn 99,Sitcom ,2013,8.4,153,Netflix
+6,Community ,Sitcom,2009,8.5,110,Claro Video
+7,The O.C.,Drama,2003,7.6,92,HBO Max
+8,Gilmore Girls ,Drama,2000,8.2,153,Netflix
+9,The Flash ,"Action, Sci-fi, Drama",2014,7.5,184,Netflix
+10,Supergirl ,"Action, Sci-fi, Drama",2015,6.2,126,HBO Max
+11,WandaVision,"Sitcom, Action, Sci -fi",2021,7.9,9,Disney+
+12,Yellowstone,"Western, Drama",2018,8.6,53,"Netflix, Mercado Play, Paramount, Prime Video Claro Video"
+13,The Office (US),Sitcom,2005,9,201,"Netflix, Mercado Play, HBO Max, Prime Video Claro Video"
+14,The Summer I Turned Pretty,"Drama, Romance",2022,7.3,26,Prime Video
+15,The Bear,Drama,2022,8.5,38,Disney+

@@ -1,0 +1,10 @@
+user_id,id,stars,review,status
+U8,5,8,,pending
+U12,9,5,,watched
+U14,6,3,,dropped
+U2,8,9,,watching
+U6,8,10,,watched
+U15,2,10,,watching
+U18,1,7,,pending
+U11,14,6,,watched
+U5,11,4,,dropped
