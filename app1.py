@@ -26,8 +26,8 @@
 #     return resp.data or []
 
 # @st.cache_data(show_spinner=False)
-# def fetch_series_by_id(series_id):
-#     resp = supabase.table("series").select("*").eq("id", series_id).single().execute()
+# def fetch_series_by_id(id):
+#     resp = supabase.table("series").select("*").eq("id", id).single().execute()
 #     return resp.data
 
 # @st.cache_data(show_spinner=False)
@@ -46,13 +46,13 @@
 #     return resp.data or []
 
 # @st.cache_data(show_spinner=False)
-# def fetch_ratings_for_series(series_id):
-#     resp = supabase.table("ratings").select("*").eq("series_id", series_id).execute()
+# def fetch_ratings_for_series(id):
+#     resp = supabase.table("ratings").select("*").eq("id", id).execute()
 #     return resp.data or []
 
-# def create_watchparty(series_id: int, host: str, time_iso: str, platforms: str, participants: List[str]):
+# def create_watchparty(id: int, host: str, time_iso: str, platforms: str, participants: List[str]):
 #     payload = {
-#         "series_id": series_id,
+#         "id": id,
 #         "host": host,
 #         "time": time_iso,
 #         "platforms": platforms
@@ -80,10 +80,10 @@
 #     fetch_watchparties.clear()
 #     return res
 
-# def add_rating(user_id: str, series_id: int, stars: int, review: str = "", status: str = "watched"):
+# def add_rating(user_id: str, id: int, stars: int, review: str = "", status: str = "watched"):
 #     payload = {
 #         "user_id": user_id,
-#         "series_id": series_id,
+#         "id": id,
 #         "stars": stars,
 #         "review": review,
 #         "status": status
@@ -92,8 +92,8 @@
 #     fetch_ratings_for_series.clear()
 #     return res
 
-# def add_to_watchlist(user_id: str, series_id: int):
-#     return add_rating(user_id, series_id, stars=None, review="", status="watchlist")
+# def add_to_watchlist(user_id: str, id: int):
+#     return add_rating(user_id, id, stars=None, review="", status="watchlist")
 
 # # -----------------------
 # # UI
@@ -223,7 +223,7 @@
 #         st.info("No watch parties yet.")
 #     else:
 #         for wp in wps:
-#             series_obj = fetch_series_by_id(wp.get("series_id")) if wp.get("series_id") else {}
+#             series_obj = fetch_series_by_id(wp.get("id")) if wp.get("id") else {}
 #             st.markdown(f"**{series_obj.get('name','—')}** hosted by {wp.get('host')} — {wp.get('time')}")
 #             participants_resp = supabase.table("participants").select("*").eq("watchparty_id", wp.get("watchparty_id") or wp.get("id")).execute()
 #             participants = participants_resp.data or []
@@ -267,7 +267,7 @@
 #     recent_ratings = supabase.table("ratings").select("*").order("id", desc=True).limit(10).execute().data or []
 #     for r in recent_ratings:
 #         u = next((uu for uu in users if uu.get("user_id") == r.get("user_id")), {})
-#         s = fetch_series_by_id(r.get("series_id")) or {}
+#         s = fetch_series_by_id(r.get("id")) or {}
 #         st.write(f"{u.get('name','Unknown')} rated {s.get('name','—')} — {r.get('stars') or '-'}")
 
 # # Platforms page
@@ -291,16 +291,16 @@
 
 #     st.subheader("To watch")
 #     for r in watchlist:
-#         s = fetch_series_by_id(r.get("series_id"))
+#         s = fetch_series_by_id(r.get("id"))
 #         st.write(f"- {s.get('name')}")
-#         if st.button(f"Mark watched {r.get('series_id')}", key=f"mark_{r.get('id')}"):
+#         if st.button(f"Mark watched {r.get('id')}", key=f"mark_{r.get('id')}"):
 #             # turn status to watched by inserting new rating (simple approach)
-#             add_rating(DEFAULT_USER_ID, r.get("series_id"), stars=4, review="", status="watched")
+#             add_rating(DEFAULT_USER_ID, r.get("id"), stars=4, review="", status="watched")
 #             st.experimental_rerun()
 
 #     st.subheader("Watched")
 #     for r in watched:
-#         s = fetch_series_by_id(r.get("series_id"))
+#         s = fetch_series_by_id(r.get("id"))
 #         st.write(f"- {s.get('name')} — {r.get('stars') or '-'} ★ — {r.get('review') or ''}")
 
 import os
@@ -331,8 +331,8 @@ def fetch_series(limit=100):
     return resp.data or []
 
 @st.cache_data(show_spinner=False)
-def fetch_series_by_id(series_id):
-    resp = supabase.table("series").select("*").eq("id", series_id).limit(1).execute()
+def fetch_series_by_id(id):
+    resp = supabase.table("series").select("*").eq("id", id).limit(1).execute()
     return resp.data[0] if resp.data else None
 
 @st.cache_data(show_spinner=False)
@@ -353,13 +353,13 @@ def fetch_platforms():
     return plats
 
 @st.cache_data(show_spinner=False)
-def fetch_ratings_for_series(series_id):
-    resp = supabase.table("ratings").select("*").eq("series_id", series_id).execute()
+def fetch_ratings_for_series(id):
+    resp = supabase.table("ratings").select("*").eq("id", id).execute()
     return resp.data or []
 
-def create_watchparty(series_id: int, host: str, time_iso: str, platforms: str, participants: List[str]):
+def create_watchparty(id: int, host: str, time_iso: str, platforms: str, participants: List[str]):
     payload = {
-        "series_id": series_id,
+        "id": id,
         "host": host,
         "time": time_iso,
         "platforms": platforms
@@ -387,10 +387,10 @@ def add_participant_to_watchparty(watchparty_id: int, participant_id: str):
     fetch_watchparties.clear()
     return res
 
-def add_rating(user_id: str, series_id: int, stars: int, review: str = "", status: str = "watched"):
+def add_rating(user_id: str, id: int, stars: int, review: str = "", status: str = "watched"):
     payload = {
         "user_id": user_id,
-        "series_id": series_id,
+        "id": id,
         "stars": stars,
         "review": review,
         "status": status
@@ -399,8 +399,8 @@ def add_rating(user_id: str, series_id: int, stars: int, review: str = "", statu
     fetch_ratings_for_series.clear()
     return res
 
-def add_to_watchlist(user_id: str, series_id: int):
-    return add_rating(user_id, series_id, stars=None, review="", status="watchlist")
+def add_to_watchlist(user_id: str, id: int):
+    return add_rating(user_id, id, stars=None, review="", status="watchlist")
 
 # -----------------------
 # UI
@@ -496,7 +496,7 @@ if page == "Series":
             st.markdown(f"**Year:** {selected_series.get('year')}")
             st.markdown(f"**Episodes:** {selected_series.get('episodes')}")
             # Obtener plataformas de esta serie
-            platforms_res = supabase.table("series_platform").select("platform").eq("series_id", selected_series.get("id")).execute()
+            platforms_res = supabase.table("series_platform").select("platform").eq("id", selected_series.get("id")).execute()
             platforms = [r["platform"] for r in (platforms_res.data or [])]
             st.markdown(f"**Platforms:** {', '.join(platforms) or '—'}")
             
@@ -539,7 +539,7 @@ if page == "Watch Parties":
         st.info("No watch parties yet.")
     else:
         for wp in wps:
-            series_obj = fetch_series_by_id(wp.get("series_id")) if wp.get("series_id") else {}
+            series_obj = fetch_series_by_id(wp.get("id")) if wp.get("id") else {}
             st.markdown(f"**{series_obj.get('name','—')}** hosted by {wp.get('host')} — {wp.get('time')}")
             participants_resp = supabase.table("participants").select("*").eq("watchparty_id", wp.get("watchparty_id") or wp.get("id")).execute()
             participants = participants_resp.data or []
@@ -587,7 +587,7 @@ if page == "Trending":
     recent_ratings = supabase.table("ratings").select("*").order("id", desc=True).limit(10).execute().data or []
     for r in recent_ratings:
         u = next((uu for uu in users if uu.get("user_id") == r.get("user_id")), {})
-        s = fetch_series_by_id(r.get("series_id")) or {}
+        s = fetch_series_by_id(r.get("id")) or {}
         st.write(f"{u.get('name','Unknown')} rated {s.get('name','—')} — {r.get('stars') or '-'}")
 
 # -----------------------
@@ -602,11 +602,11 @@ if page == "Platforms":
         st.markdown(f"### {name}")
         try:
             # 1️⃣ ids de series en esta plataforma
-            series_ids_res = supabase.table("series_platform").select("series_id").eq("platform", name).execute()
-            series_ids = [r["series_id"] for r in (series_ids_res.data or [])]
+            ids_res = supabase.table("series_platform").select("id").eq("platform", name).execute()
+            ids = [r["id"] for r in (ids_res.data or [])]
             
-            if series_ids:
-                series_res = supabase.table("series").select("*").in_("id", series_ids).limit(50).execute()
+            if ids:
+                series_res = supabase.table("series").select("*").in_("id", ids).limit(50).execute()
                 for s in (series_res.data or []):
                     st.write(f"- {s.get('name')} ({s.get('year')})")
             else:
@@ -625,13 +625,13 @@ if page == "My Watchlist":
 
     st.subheader("To watch")
     for r in watchlist:
-        s = fetch_series_by_id(r.get("series_id"))
+        s = fetch_series_by_id(r.get("id"))
         st.write(f"- {s.get('name')}")
-        if st.button(f"Mark watched {r.get('series_id')}", key=f"mark_{r.get('id')}"):
-            add_rating(DEFAULT_USER_ID, r.get("series_id"), stars=4, review="", status="watched")
+        if st.button(f"Mark watched {r.get('id')}", key=f"mark_{r.get('id')}"):
+            add_rating(DEFAULT_USER_ID, r.get("id"), stars=4, review="", status="watched")
             st.experimental_rerun()
 
     st.subheader("Watched")
     for r in watched:
-        s = fetch_series_by_id(r.get("series_id"))
+        s = fetch_series_by_id(r.get("id"))
         st.write(f"- {s.get('name')} — {r.get('stars') or '-'} ★ — {r.get('review') or ''}")
