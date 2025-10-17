@@ -19,7 +19,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 #-----------------------
-Utility helpers
+#Utility helpers
 #-----------------------
 @st.cache_data(show_spinner=False)
 def fetch_series(limit=100):
