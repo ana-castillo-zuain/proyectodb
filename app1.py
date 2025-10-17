@@ -136,7 +136,7 @@ if page == "Home":
                 if st.button("Details", key=f"home_details_{s.get('id')}"):
                     st.session_state["open_series"] = s.get("id")
                     page = "Series"
-                    st.experimental_rerun()
+                    st.rerun()
             with c2:
                 st.write(f"Rating: {s.get('rating') or '—'}")
 
@@ -180,7 +180,7 @@ if page == "Series":
                 if st.button("Open", key=f"open_{s.get('id')}"):
                     selected_series = fetch_series_by_id(s.get("id"))
                     st.session_state["open_series"] = s.get('id')
-                    st.experimental_rerun()
+                    st.rerun()
         selected_series = None
 
     if selected_series:
@@ -242,7 +242,7 @@ if page == "Watch Parties":
             st.write("Participants:", ", ".join([p.get("participant") for p in participants]) or "—")
             if st.button("Join", key=f"join_{wp.get('watchparty_id')}"):
                 add_participant_to_watchparty(wp.get("watchparty_id") or wp.get("id"), DEFAULT_USER_ID)
-                st.experimental_rerun()
+                st.rerun()
 
     st.markdown("---")
     st.subheader("Create a watch party")
@@ -325,7 +325,7 @@ if page == "My Watchlist":
         st.write(f"- {s.get('name')}")
         if st.button(f"Mark watched {r.get('id')}", key=f"mark_{r.get('id')}"):
             add_rating(DEFAULT_USER_ID, r.get("id"), stars=4, review="", status="watched")
-            st.experimental_rerun()
+            st.rerun()
 
     st.subheader("Watched")
     for r in watched:
