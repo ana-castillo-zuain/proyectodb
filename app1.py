@@ -183,47 +183,50 @@ if page == "Series":
                     st.rerun()
         selected_series = None
 
-    if selected_series:
-        st.markdown("---")
-        st.subheader(selected_series.get("name"))
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            st.markdown(f"**Genre:** {selected_series.get('genre')}")
-            st.markdown(f"**Year:** {selected_series.get('year')}")
-            st.markdown(f"**Episodes:** {selected_series.get('episodes')}")
-            # Obtener plataformas de esta serie
-            platforms_res = supabase.table("series_platform").select("platform").eq("id", selected_series.get("id")).execute()
-            platforms = [r["platform"] for r in (platforms_res.data or [])]
-            st.markdown(f"**Platforms:** {', '.join(platforms) or '—'}")
-            
-            st.markdown(f"**Aggregated rating:** {selected_series.get('rating') or '—'}")
-            st.markdown("### Community reviews")
-            reviews = fetch_ratings_for_series(selected_series.get("id"))
-            if not reviews:
-                st.write("No reviews yet.")
-            else:
-                for r in reviews:
-                    u = next((uu for uu in users if uu.get("user_id") == r.get("user_id")), {})
-                    st.write(f"- **{u.get('name', r.get('user_id'))}** — {r.get('stars') or '-'} ★: {r.get('review') or ''}")
+if selected_series:
+    st.markdown("---")
+    st.subheader(selected_series.get("name"))
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.markdown(f"**Género:** {selected_series.get('genre')}")
+        st.markdown(f"**Año:** {selected_series.get('year')}")
+        st.markdown(f"**Episodios:** {selected_series.get('episodes')}")
+        st.markdown(f"**Plataforma:** {selected_series.get('platform') or '—'}")
+        st.markdown(f"**Rating promedio:** {selected_series.get('rating') or '—'}")
 
-            st.markdown("### Actions")
-            if st.button("Add to my watchlist"):
-                res = add_to_watchlist(DEFAULT_USER_ID, selected_series.get("id"))
-                if res.error:
-                    st.error("Could not add to watchlist")
-                else:
-                    st.success("Added to watchlist")
-        with col2:
-            st.markdown("### Rate this series")
-            stars = st.slider("Stars", 0, 5, 4)
-            review_text = st.text_area("Review", height=120)
-            if st.button("Submit rating"):
-                res = add_rating(DEFAULT_USER_ID, selected_series.get("id"), stars, review_text, status="watched")
-                if res.error:
-                    st.error("Could not submit rating")
-                else:
-                    st.success("Thanks for the rating!")
-                    fetch_ratings_for_series.clear()
+        st.markdown("### Reseñas de la comunidad")
+        reviews = fetch_ratings_for_series(selected_series.get("id"))
+        if not reviews:
+            st.write("No hay reseñas todavía.")
+        else:
+            for r in reviews:
+                u = next((uu for uu in users if uu.get("user_id") == r.get("user_id")), {})
+                st.write(f"- **{u.get('name', r.get('user_id'))}** — {r.get('stars') or '-'} ★: {r.get('review') or ''}")
+
+        st.markdown("### Acciones")
+        if st.button("Agregar a mi watchlist"):
+            res = add_to_watchlist(DEFAULT_USER_ID, selected_series.get("id"))
+            if res.error:
+                st.error("No se pudo agregar a la watchlist")
+            else:
+                st.success("Agregada a la watchlist")
+
+        # 🔹 Botón para volver al catálogo
+        if st.button("⬅ Volver al catálogo"):
+            del st.session_state["open_series"]
+            st.rerun()
+
+    with col2:
+        st.markdown("### Calificar esta serie")
+        stars = st.slider("Estrellas", 0, 5, 4)
+        review_text = st.text_area("Reseña", height=120)
+        if st.button("Enviar reseña"):
+            res = add_rating(DEFAULT_USER_ID, selected_series.get("id"), stars, review_text, status="watched")
+            if res.error:
+                st.error("No se pudo enviar la reseña")
+            else:
+                st.success("¡Gracias por tu reseña!")
+                fetch_ratings_for_series.clear()
 
 # -----------------------
 # Watch Parties
