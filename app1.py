@@ -1,4 +1,3 @@
-
 import os
 import streamlit as st
 from supabase import create_client, Client
@@ -18,9 +17,9 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-#-----------------------
-#Utility helpers
-#-----------------------
+# -----------------------
+# Utility helpers
+# -----------------------
 @st.cache_data(show_spinner=False)
 def fetch_series(limit=100):
     resp = supabase.table("series").select("*").limit(limit).execute()
@@ -44,7 +43,6 @@ def fetch_users():
 @st.cache_data(show_spinner=False)
 def fetch_platforms():
     resp = supabase.table("series_platform").select("platform").execute()
-    # eliminar duplicados
     plats = list({r["platform"] for r in (resp.data or [])})
     return plats
 
@@ -64,14 +62,12 @@ def create_watchparty(id: int, host: str, time_iso: str, platforms: str, partici
     if res.error:
         return False, res.error
     wp = res.data[0]
-    wp_id = wp.get("watchparty_id") or wp.get("id")  # depende de tu esquema
-    # insert participants rows
+    wp_id = wp.get("watchparty_id") or wp.get("id")
     for p in participants:
         supabase.table("participants").insert({
             "watchparty_id": wp_id,
             "participant": p
         }).execute()
-    # clear caches
     fetch_watchparties.clear()
     return True, wp
 
@@ -98,6 +94,7 @@ def add_rating(user_id: str, id: int, stars: int, review: str = "", status: str 
 def add_to_watchlist(user_id: str, id: int):
     return add_rating(user_id, id, stars=None, review="", status="watchlist")
 
+
 # -----------------------
 # UI
 # -----------------------
@@ -105,7 +102,7 @@ st.set_page_config(page_title="WatchParty - prototype", layout="wide")
 st.markdown("<h1 style='margin-bottom:0.2rem'>WatchParty — prototype</h1>", unsafe_allow_html=True)
 st.write("Sketch-driven prototype connected to Supabase")
 
-# Sidebar (profile / navigation)
+# Sidebar
 with st.sidebar:
     st.header("Profile")
     users = fetch_users()
@@ -114,15 +111,14 @@ with st.sidebar:
         st.subheader(user.get("name", DEFAULT_USER_ID))
     else:
         st.subheader(DEFAULT_USER_ID)
+
     st.write("Quick links")
-    # Leer la página guardada en session_state si existe
     default_page = st.session_state.get("page", "Home")
     page = st.radio(
         "",
         ["Home", "Series", "Watch Parties", "Trending", "Platforms", "My Watchlist"],
         index=["Home", "Series", "Watch Parties", "Trending", "Platforms", "My Watchlist"].index(default_page)
     )
-    # Guardar el valor elegido en la sesión
     st.session_state["page"] = page
 
 
@@ -133,6 +129,7 @@ if page == "Home":
     st.subheader("Your watchlists & quick actions")
     col1, col2 = st.columns([3, 1])
 
+    # 🔹 Trending Section
     with col1:
         st.markdown("### Trending now")
         series = fetch_series(limit=20)
@@ -142,13 +139,14 @@ if page == "Home":
             st.markdown(f"**{s.get('name')}** — {s.get('genre')} — {s.get('year')}")
             c1, c2 = st.columns([1, 4])
             with c1:
-                if st.button("Details", key=f"home_details_{s.get('id')}"):
+                if st.button("Details", key=f"home_series_details_{s.get('id')}"):
                     st.session_state["open_series"] = s.get("id")
-                    page = "Series"
+                    st.session_state["page"] = "Series"
                     st.rerun()
             with c2:
                 st.write(f"Rating: {s.get('rating') or '—'}")
 
+    # 🔹 Quick Watchparty Form
     with col2:
         st.markdown("### Create quick watch party")
         series_list = fetch_series(limit=200)
@@ -161,10 +159,12 @@ if page == "Home":
         
         platform = st.text_input("Platform (e.g. Netflix)")
         invited = st.text_input("Invite participants (comma separated user_id)")
-        if st.button("Details", key=f"home_details_{s.get('id')}"):
-          st.session_state["open_series"] = s.get("id")
-          st.session_state["page"] = "Series"
-          st.rerun()
+        if st.button("Create watchparty"):
+            ok, wp = create_watchparty(int(sel), DEFAULT_USER_ID, dt.isoformat(), platform, [p.strip() for p in invited.split(",") if p.strip()])
+            if ok:
+                st.success("Watchparty created!")
+            else:
+                st.error(f"Error creating watchparty: {wp}")
 
 
 # -----------------------
@@ -173,7 +173,6 @@ if page == "Home":
 if page == "Series":
     st.header("Series catalogue")
 
-    # Inicializar variables
     selected_series = None
     series = fetch_series(limit=200)
     users = fetch_users()
@@ -183,11 +182,12 @@ if page == "Series":
     if series_to_open:
         selected_series = fetch_series_by_id(series_to_open)
 
-    # Si hay una serie seleccionada, mostrar detalles
+    # Detalles de serie
     if selected_series:
         st.markdown("---")
         st.subheader(selected_series.get("name"))
         col1, col2 = st.columns([2, 1])
+
         with col1:
             st.markdown(f"**Género:** {selected_series.get('genre', '—')}")
             st.markdown(f"**Año:** {selected_series.get('year', '—')}")
@@ -212,7 +212,6 @@ if page == "Series":
                 else:
                     st.success("Agregada a la watchlist")
 
-            # 🔹 Botón para volver al catálogo
             if st.button("⬅ Volver al catálogo"):
                 if "open_series" in st.session_state:
                     del st.session_state["open_series"]
@@ -230,7 +229,7 @@ if page == "Series":
                     st.success("¡Gracias por tu reseña!")
                     fetch_ratings_for_series.clear()
 
-    # Si no hay serie abierta, mostrar el catálogo
+    # Catálogo
     else:
         grid_cols = st.columns(4)
         for i, s in enumerate(series):
@@ -239,7 +238,7 @@ if page == "Series":
                 st.markdown(f"### {s.get('name')}")
                 st.write(f"{s.get('genre', '—')} • {s.get('year', '—')}")
                 st.write(f"Episodios: {s.get('episodes') or '-'}")
-                if st.button("Ver detalles", key=f"open_{s.get('id')}"):
+                if st.button("Ver detalles", key=f"series_open_{s.get('id')}"):
                     st.session_state["open_series"] = s.get("id")
                     st.rerun()
 
