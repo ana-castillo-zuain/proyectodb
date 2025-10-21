@@ -825,7 +825,7 @@ if page == "Trending":
 # -----------------------
 # Platforms
 # -----------------------
-if page == "Platforms":
+if page == "Plataformas":
     st.header("Plataformas")
     st.write("💡Platformas disponibles")
 
@@ -923,7 +923,7 @@ if page == "Platforms":
 # -----------------------
 # My Watchlist
 # -----------------------
-if page == "My Watchlist":
+if page == "Mi Watchlist":
     st.header("Mi Watchlist / Mis ratings")
     my_ratings = supabase.table("ratings").select("*").eq("user_id", DEFAULT_USER_ID).execute().data or []
     watchlist = [r for r in my_ratings if r.get("status") == "watchlist"]
