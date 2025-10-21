@@ -205,51 +205,6 @@ with st.sidebar:
     )
 st.session_state["page"] = page
 
-
-
-# -----------------------
-# Home Overview
-# -----------------------
-# if page == "Home": 
-#     st.subheader("Your watchlists & quick actions") 
-#     col1, col2 = st.columns([3, 1])
-#     # 🔹 Trending Section 
-#     with col1: 
-#         st.markdown("### Trending now") 
-#         series = fetch_series(limit=20) 
-#         sorted_trend = sorted(series, key=lambda s: (s.get("rating") or 0), reverse=True)[:10]
-
-#         for s in sorted_trend: 
-#             st.markdown(f"**{s.get('name')}** — {s.get('genre')} — {s.get('year')}") 
-#             c1, c2 = st.columns([1, 4]) 
-#             with c1: 
-#                 if st.button("Details", key=f"home_series_details_{s.get('id')}"): 
-#                     st.session_state["open_series"] = s.get("id") 
-#                     st.session_state["page"] = "Series" 
-#                     st.rerun() 
-#             with c2: 
-#                 st.write(f"Rating: {s.get('rating') or '—'}")
-
-#     # 🔹 Quick Watchparty Form 
-#     with col2: 
-#         st.markdown("### Create quick watch party") 
-#         series_list = fetch_series(limit=200) 
-#         series_names = {str(s.get("id")): s.get("name") for s in series_list} 
-#         sel = st.selectbox("Series", options=list(series_names.keys()), format_func=lambda x: series_names[x])
-
-#         date = st.date_input("Date", value=datetime.now().date()) 
-#         time = st.time_input("Time", value=datetime.now().time()) 
-#         dt = datetime.combine(date, time)
-
-#         platform = st.text_input("Platform (e.g. Netflix)") 
-#         invited = st.text_input("Invite participants (comma separated user_id)") 
-#         if st.button("Create watchparty"): 
-#             ok, wp = create_watchparty(int(sel), DEFAULT_USER_ID, dt.isoformat(), platform, [p.strip() for p in invited.split(",") if p.strip()]) 
-#             if ok: 
-#                 st.success("Watchparty created!") 
-#             else: 
-#                 st.error(f"Error creating watchparty: {wp}")
-
 #-----------------------
 #Home Overview FORMA GRID
 #-----------------------
