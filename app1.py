@@ -367,7 +367,7 @@ if page == "Series":
             st.markdown("### Acciones")
             if st.button("Agregar a mi watchlist"):
                 res = add_to_watchlist(DEFAULT_USER_ID, selected_series.get("id"))
-                if not res or res.status_code >= 400:
+                if not res or getattr(res, "error", None):
                     st.error("No se pudo agregar a la watchlist")
                 else:
                     st.success("Agregada a la watchlist correctamente")
@@ -387,7 +387,7 @@ if page == "Series":
             review_text = st.text_area("Reseña", height=120)
             if st.button("Enviar reseña"):
                 res = add_rating(DEFAULT_USER_ID, selected_series.get("id"), stars, review_text, status="watched")
-                if not res or res.status_code >= 400:
+                if not res or getattr(res, "error", None):
                     st.error("No se pudo enviar la reseña")
                 else:
                     st.success("¡Gracias por tu reseña!")
@@ -582,39 +582,13 @@ if page == "Watch Parties":
             participants_resp = supabase.table("participants").select("*").eq("watchparty_id", wp_id).execute()
             participants = [p.get("participant") for p in (participants_resp.data or [])]
 
-            # with st.container():
-            #     st.markdown(f"""
-            #     <div class='wp-card'>
-            #         <div class='wp-title'>{series_obj.get('name','(No title)')}</div>
-            #         <div class='wp-details'>Hosted by: <b>{wp.get('host')}</b></div>
-            #         <div class='wp-details'>🕒 {wp.get('time') or '—'}</div>
-            #         <div class='wp-participants'>👥 Participants: {', '.join(participants) or '—'}</div>
-            #     </div>
-            #     """, unsafe_allow_html=True)
             with st.container():
-                # Buscar la serie asociada a la watchparty
-                series_obj = next((s for s in series if s.get("id") == wp.get("series_id")), {})
-                series_name = series_obj.get("name", "(No title)")
-
-                # Buscar nombre del anfitrión
-                host_user = next((u for u in users if u.get("user_id") == wp.get("host")), {})
-                host_name = host_user.get("name", wp.get("host"))
-
-                # Buscar nombres de los participantes desde la tabla participants
-                wp_participants = [
-                    next((u.get("name", p.get("participant")) for u in users if u.get("user_id") == p.get("participant")), None)
-                    for p in participants
-                    if p.get("watchparty_id") == wp.get("watchparty_id")
-                ]
-                wp_participants = [p for p in wp_participants if p]  # filtrar None
-
-                # Render de la card HTML
                 st.markdown(f"""
                 <div class='wp-card'>
-                    <div class='wp-title'>{series_name}</div>
-                    <div class='wp-details'>🎬 Hosted by: <b>{host_name}</b></div>
+                    <div class='wp-title'>{series_obj.get('name','(No title)')}</div>
+                    <div class='wp-details'>Hosted by: <b>{wp.get('host')}</b></div>
                     <div class='wp-details'>🕒 {wp.get('time') or '—'}</div>
-                    <div class='wp-participants'>👥 Participants: {', '.join(wp_participants) or '—'}</div>
+                    <div class='wp-participants'>👥 Participants: {', '.join(participants) or '—'}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
