@@ -890,9 +890,21 @@ if page == "Mi Watchlist":
     for r in watchlist:
         s = fetch_series_by_id(r.get("id"))
         st.write(f"- {s.get('name')}")
+
         if st.button(f"Marcar como vista {r.get('id')}", key=f"mark_{r.get('id')}"):
+            # 🔹 Eliminar primero el registro con status="watchlist"
+            supabase.table("ratings") \
+                .delete() \
+                .eq("user_id", DEFAULT_USER_ID) \
+                .eq("id", r.get("id")) \
+                .eq("status", "watchlist") \
+                .execute()
+
+            # 🔹 Luego agregar la serie como vista
             add_rating(DEFAULT_USER_ID, r.get("id"), stars=4, review="", status="watched")
+
             st.rerun()
+
 
     st.subheader("Vistas")
     for r in watched:
