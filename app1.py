@@ -386,12 +386,18 @@ if page == "Series":
             stars = st.slider("Estrellas", 0, 5, 4)
             review_text = st.text_area("Reseña", height=120)
             if st.button("Enviar reseña"):
+                # 🧹 Eliminar cualquier reseña previa del mismo usuario para esta serie
+                supabase.table("ratings").delete().eq("user_id", DEFAULT_USER_ID).eq("id", selected_series.get("id")).execute()
+
+                # 💾 Insertar la nueva reseña
                 res = add_rating(DEFAULT_USER_ID, selected_series.get("id"), stars, review_text, status="watched")
+                
                 if not res or getattr(res, "error", None):
                     st.error("No se pudo enviar la reseña")
                 else:
                     st.success("¡Gracias por tu reseña!")
                     fetch_ratings_for_series.clear()
+
 
     # Catálogo
     else:
