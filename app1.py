@@ -366,13 +366,26 @@ if page == "Series":
 
             st.markdown("### Acciones")
             if st.button("Agregar a mi watchlist"):
-                res = add_to_watchlist(DEFAULT_USER_ID, selected_series.get("id"))
+                # 🧹 Eliminar cualquier registro previo de esa serie para este usuario
+                supabase.table("ratings") \
+                    .delete() \
+                    .eq("user_id", DEFAULT_USER_ID) \
+                    .eq("id", selected_series.get("id")) \
+                    .execute()
+
+                # 💾 Insertar nuevamente con estado "watchlist"
+                res = supabase.table("ratings").insert({
+                    "user_id": DEFAULT_USER_ID,
+                    "id": selected_series.get("id"),
+                    "stars": None,
+                    "review": "",
+                    "status": "watchlist"
+                }).execute()
+
                 if not res or getattr(res, "error", None):
                     st.error("No se pudo agregar a la watchlist")
                 else:
                     st.success("Agregada a la watchlist correctamente")
-
-
         
 
 
@@ -383,7 +396,7 @@ if page == "Series":
 
         with col2:
             st.markdown("### Calificar esta serie")
-            stars = st.slider("Estrellas", 0, 5, 4)
+            stars = st.slider("Estrellas", 0, 10, 4)
             review_text = st.text_area("Reseña", height=120)
             if st.button("Enviar reseña"):
                 supabase.table("ratings") \
@@ -904,7 +917,7 @@ if page == "Mi Watchlist":
         s = fetch_series_by_id(r.get("id"))
         st.write(f"- {s.get('name')}")
 
-        if st.button(f"Marcar como vista {r.get('id')}", key=f"mark_{r.get('id')}"):
+        if st.button(f"Marcar como vista", key=f"mark_{r.get('id')}"):
             # 🔹 Eliminar primero el registro con status="watchlist"
             supabase.table("ratings") \
                 .delete() \
@@ -914,7 +927,7 @@ if page == "Mi Watchlist":
                 .execute()
 
             # 🔹 Luego agregar la serie como vista
-            add_rating(DEFAULT_USER_ID, r.get("id"), stars=4, review="", status="watched")
+            add_rating(DEFAULT_USER_ID, r.get("id"), stars=7, review="", status="watched")
 
             st.rerun()
 
