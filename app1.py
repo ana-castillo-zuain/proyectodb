@@ -673,10 +673,11 @@ if page == "Watch Parties":
 # -----------------------
 if page == "Party Lobby":
     wp_id = st.session_state.get("open_party", None)
+
     if not wp_id:
         st.warning("No hay party seleccionada. Ingresa el lobby en la sección de Watch Parties.")
     else:
-        # 🔹 Intentar buscar el watchparty por cualquiera de los dos posibles IDs
+        # 🔹 Buscar la watchparty
         wp = None
         for key in ["watchparty_id", "id"]:
             try:
@@ -686,27 +687,45 @@ if page == "Party Lobby":
                     break
             except Exception:
                 continue
-        
+
         if not wp:
             st.error("❌ No se encontró esta Watch Party en la base de datos.")
         else:
-            # ✅ Mostrar datos de la Watch Party
-            series = fetch_series_by_id(wp.get("id")) if wp.get("id") else {}
-            participants_resp = supabase.table("participants").select("*").eq("watchparty_id", wp_id).execute()
-            participants = [p.get("participant") for p in (participants_resp.data or [])]
+            # ✅ Buscar la serie asociada correctamente
+            series_obj = {}
+            series_id = wp.get("series")
+            if series_id:
+                s_res = supabase.table("series").select("name").eq("id", series_id).execute()
+                if s_res.data:
+                    series_obj = s_res.data[0]
 
-            st.header(f"🎬 Watch Party — {series.get('name', '(No title)')}")
-            st.markdown(f"**Anfitrión:** {wp.get('host', '—')}")
+            # ✅ Obtener nombre del anfitrión
+            host_username = wp.get("host")
+            if host_username:
+                host_res = supabase.table("users").select("name").eq("user_id", wp.get("host")).execute()
+                if host_res.data:
+                    host_username = host_res.data[0].get("name")
+
+            # ✅ Obtener nombres de los participantes
+            participants_resp = supabase.table("participants").select("participant").eq("watchparty_id", wp_id).execute()
+            participant_ids = [p.get("participant") for p in (participants_resp.data or [])]
+
+            participant_names = []
+            if participant_ids:
+                users_res = supabase.table("users").select("user_id, name").in_("user_id", participant_ids).execute()
+                participant_names = [u.get("name") for u in (users_res.data or [])]
+
+            # 🖥️ Mostrar datos
+            st.header(f"🎬 Watch Party — {series_obj.get('name', '(No title)')}")
+            st.markdown(f"**Anfitrión:** {host_username or '—'}")
             st.markdown(f"**Hora:** {wp.get('time', '—')}")
             st.markdown(f"**Plataforma:** {wp.get('platforms', '—')}")
-            st.markdown(f"**Participantes:** {', '.join(participants) or '—'}")
+            st.markdown(f"**Participantes:** {', '.join(participant_names) or '—'}")
 
             if st.button("⬅ Volver a Watch Parties"):
                 del st.session_state["open_party"]
                 st.session_state["page"] = "Watch Parties"
                 st.rerun()
-
-
 
 # -----------------------
 # Trending
