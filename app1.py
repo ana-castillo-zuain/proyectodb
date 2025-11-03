@@ -601,23 +601,44 @@ if page == "Watch Parties":
         """, unsafe_allow_html=True)
 
         st.markdown("<div class='wp-grid'>", unsafe_allow_html=True)
-
         for wp in wps:
-            series_obj = fetch_series_by_id(wp.get("id")) if wp.get("id") else {}
+            # Obtener el ID de la watchparty
             wp_id = wp.get("watchparty_id") or wp.get("id")
+
+            # 1️⃣ Obtener la serie asociada a la watchparty
+            series_id = wp.get("series")
+            series_obj = {}
+            if series_id:
+                series_resp = supabase.table("series").select("name").eq("id", series_id).execute()
+                if series_resp.data:
+                    series_obj = series_resp.data[0]
+
+            # 2️⃣ Obtener el nombre del anfitrión (host)
+            host_username = wp.get("host")
+            if host_username:
+                host_resp = supabase.table("users").select("name").eq("user_id", wp.get("host")).execute()
+                if host_resp.data:
+                    host_username = host_resp.data[0].get("name")
+
+            # 3️⃣ Obtener los participantes (convertir user_id → username)
             participants_resp = supabase.table("participants").select("*").eq("watchparty_id", wp_id).execute()
             participants = [p.get("participant") for p in (participants_resp.data or [])]
 
+            usernames = []
+            if participants:
+                users_resp = supabase.table("users").select("user_id, name").in_("user_id", participants).execute()
+                usernames = [u.get("name") for u in (users_resp.data or [])]
+
+            # 4️⃣ Mostrar la card
             with st.container():
                 st.markdown(f"""
                 <div class='wp-card'>
                     <div class='wp-title'>{series_obj.get('name','(No title)')}</div>
-                    <div class='wp-details'>Hosted by: <b>{wp.get('host')}</b></div>
+                    <div class='wp-details'>Hosted by: <b>{host_username or '—'}</b></div>
                     <div class='wp-details'>🕒 {wp.get('time') or '—'}</div>
-                    <div class='wp-participants'>👥 Participants: {', '.join(participants) or '—'}</div>
+                    <div class='wp-participants'>👥 Participants: {', '.join(usernames) or '—'}</div>
                 </div>
                 """, unsafe_allow_html=True)
-
 
                 # 🧩 Si el usuario ya está en la party
                 if DEFAULT_USER_ID in participants:
