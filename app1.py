@@ -341,7 +341,9 @@ if page == "Series":
 
         genres_list = sorted({s.get("genre") for s in all_series if s.get("genre")})
         years_list = sorted({s.get("year") for s in all_series if s.get("year")})
-        episodes_list = sorted({s.get("episodes") for s in all_series if s.get("episodes")})
+        episodes_values = [s.get("episodes") for s in all_series if isinstance(s.get("episodes"), (int, float))]
+        min_eps, max_eps = (min(episodes_values), max(episodes_values)) if episodes_values else (0, 0)
+
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -349,16 +351,20 @@ if page == "Series":
         with col2:
             selected_year = st.selectbox("Filtrar por año", ["Todos"] + [str(y) for y in years_list])
         with col3:
-            selected_episodes = st.selectbox("Filtrar por cantidad de episodios", ["Todos"] + [str(e) for e in episodes_list])
-
+            ep_min, ep_max = st.slider(
+                "Rango de episodios",
+                min_value=int(min_eps),
+                max_value=int(max_eps),
+                value=(int(min_eps), int(max_eps))
+            )
         # Solo aplicar filtros si el usuario escribe o selecciona algo
-        if search_query or selected_genre != "Todos" or selected_year != "Todos" or selected_episodes != "Todos":
+        if search_query or selected_genre != "Todos" or selected_year != "Todos" or episodes_values != "Todos":
             filtered = []
             for s in all_series:
                 name_match = not search_query or search_query.lower() in s.get("name", "").lower()
                 genre_match = selected_genre == "Todos" or s.get("genre") == selected_genre
                 year_match = selected_year == "Todos" or str(s.get("year")) == selected_year
-                episodes_match = selected_episodes == "Todos" or str(s.get("episodes")) == selected_episodes
+                episodes_match = ep_min <= (s.get("episodes") or 0) <= ep_max
 
                 if name_match and genre_match and year_match and episodes_match:
                     filtered.append(s)
