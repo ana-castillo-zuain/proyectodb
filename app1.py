@@ -4,6 +4,7 @@ from supabase import create_client, Client
 from typing import List
 from datetime import datetime
 from dotenv import load_dotenv
+from datetime import datetime
 load_dotenv()
 
 
@@ -306,26 +307,55 @@ if page == "Home":
         
     
 
-    # 🔹 Quick Watchparty Form 
-    with col2: 
-        st.markdown("### 🍿 Crea una watch party") 
-        series_list = fetch_series(limit=200) 
-        series_names = {str(s.get("id")): s.get("name") for s in series_list} 
-        sel = st.selectbox("Series", options=list(series_names.keys()), format_func=lambda x: series_names[x])
+    with col2:
+        st.markdown("### 🍿 Crea una watch party")
 
-        date = st.date_input("Fecha", value=datetime.now().date()) 
-        time = st.time_input("Hora", value=datetime.now().time()) 
+        # 📺 Obtener listado de series
+        series_list = fetch_series(limit=200)
+        series_names = {str(s.get("id")): s.get("name") for s in series_list}
+
+        sel = st.selectbox(
+            "Series",
+            options=list(series_names.keys()),
+            format_func=lambda x: series_names.get(x, "Sin nombre")
+        )
+
+        # 📅 Fecha y hora
+        date = st.date_input("Fecha", value=datetime.now().date())
+        time = st.time_input("Hora", value=datetime.now().time())
         dt = datetime.combine(date, time)
 
-        platform = st.text_input("Plataforma (ej. Netflix)") 
-        invited = st.text_input("Invita participantes (user_id separados con coma)") 
-        if st.button("Crear watchparty"): 
-            ok, wp = create_watchparty(int(sel), DEFAULT_USER_ID, dt.isoformat(), platform, [p.strip() for p in invited.split(",") if p.strip()]) 
-            if ok: 
-                st.success("Watchparty creada!✅") 
-            else: 
-                st.error(f"Error creando watchparty: {wp}")
+        # 💻 Plataforma y participantes
+        platform = st.text_input("Plataforma (ej. Netflix)")
+        invited = st.text_input("Invita participantes (user_id separados con coma)")
 
+        if st.button("Crear watchparty"):
+            try:
+                # ✨ Insertar la watchparty en Supabase
+                wp_payload = {
+                    "id": int(sel),
+                    "host": DEFAULT_USER_ID,
+                    "time": dt.isoformat(),
+                    "platforms": platform,
+                }
+                wp_res = supabase.table("watchparties").insert(wp_payload).execute()
+
+                if not wp_res.data:
+                    st.error("Error creando la watchparty en la base de datos.")
+                else:
+                    wp_id = wp_res.data[0].get("id") or wp_res.data[0].get("watchparty_id")
+
+                    # 🧍 Agregar participantes
+                    participants = [p.strip() for p in invited.split(",") if p.strip()]
+                    for p in participants:
+                        supabase.table("participants").insert({
+                            "watchparty_id": wp_id,
+                            "participant": p
+                        }).execute()
+
+                    st.success("🎉 ¡Watchparty creada correctamente!")
+            except Exception as e:
+                st.error(f"Error al crear la watchparty: {e}")
 
 # -----------------------
 # Series catalogue
