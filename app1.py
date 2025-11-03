@@ -54,36 +54,41 @@ def fetch_ratings_for_series(id):
     resp = supabase.table("ratings").select("*").eq("id", id).execute()
     return resp.data or []
 
-def create_watchparty(id: int, host: str, time_iso: str, platforms: str, participants: List[str]):
+def create_watchparty(series_id: int, host: str, time_iso: str, platforms: str, participants: List[str]):
+
+    last_wp = supabase.table("watchparties").select("watchparty_id").order("watchparty_id", desc=True).limit(1).execute()
+    if last_wp.data:
+        last_id = last_wp.data[0]["watchparty_id"]
+        next_num = int(last_id.replace("W", "")) + 1
+    else:
+        next_num = 1
+    new_id = f"W{next_num}"
+
+    # 2️⃣ Crear registro
     payload = {
-        "series": id,
+        "watchparty_id": new_id,
+        "series": series_id,
         "host": host,
         "time": time_iso,
         "platforms": platforms
     }
 
-    try:
-        res = supabase.table("watchparties").insert(payload).execute()
+    res = supabase.table("watchparties").insert(payload).execute()
+    if getattr(res, "error", None):
+        return False, res.error
 
-        if not res or not getattr(res, "data", None):
-            return False, "No se pudo crear la watchparty (sin datos devueltos)."
+    wp = res.data[0]
+    wp_id = wp["watchparty_id"]
 
-        wp = res.data[0]
-        wp_id = wp.get("watchparty_id") or wp.get("id")
+    # 3️⃣ Insertar participantes
+    for p in participants:
+        supabase.table("participants").insert({
+            "watchparty_id": wp_id,
+            "participant": p
+        }).execute()
 
-        for p in participants:
-            supabase.table("participants").insert({
-                "watchparty_id": wp_id,
-                "participant": p
-            }).execute()
-
-
-        fetch_watchparties.clear()
-
-        return True, wp
-
-    except Exception as e:
-        return False, str(e)
+    fetch_watchparties.clear()
+    return True, wp
 
 
 def add_participant_to_watchparty(watchparty_id: int, participant_id: str):
