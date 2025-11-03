@@ -56,7 +56,7 @@ def fetch_ratings_for_series(id):
 
 def create_watchparty(id: int, host: str, time_iso: str, platforms: str, participants: List[str]):
     payload = {
-        "id": id,
+        "series": id,
         "host": host,
         "time": time_iso,
         "platforms": platforms
@@ -326,7 +326,7 @@ if page == "Home":
         sel = st.selectbox("Series", options=list(series_names.keys()), format_func=lambda x: series_names[x])
 
         date = st.date_input("Fecha", value=datetime.now().date()) 
-        time = st.time_input("Hora", value=datetime.now().time()) 
+        time = st.time_input("Hora", key="time_input", value=st.session_state.get("time_input", datetime.now().time()))
         dt = datetime.combine(date, time)
 
         platform = st.text_input("Plataforma (ej. Netflix)") 
