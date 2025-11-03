@@ -177,7 +177,7 @@ section[data-testid="stSidebar"] {
 """, unsafe_allow_html=True)
 
 st.markdown("<h1 style='margin-bottom:0.2rem'>ScreenMates </h1>", unsafe_allow_html=True)
-st.write("Rate series, create watch parties, and share with friends!")
+
 
 # Sidebar
 with st.sidebar:
@@ -634,9 +634,9 @@ if page == "Watch Parties":
                 st.markdown(f"""
                 <div class='wp-card'>
                     <div class='wp-title'>{series_obj.get('name','(No title)')}</div>
-                    <div class='wp-details'>Hosted by: <b>{host_username or '—'}</b></div>
+                    <div class='wp-details'>Anfitrión: <b>{host_username or '—'}</b></div>
                     <div class='wp-details'>🕒 {wp.get('time') or '—'}</div>
-                    <div class='wp-participants'>👥 Participants: {', '.join(usernames) or '—'}</div>
+                    <div class='wp-participants'>👥 Participantes: {', '.join(usernames) or '—'}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -827,7 +827,7 @@ if page == "Trending":
     st.markdown("<div class='trend-title'>👥 Favoritas de tus amigos</div>", unsafe_allow_html=True)
 
     if not recent_ratings:
-        st.markdown("<p style='color:#bbb;'>No recent ratings yet.</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color:#bbb;'>Sin ratings recientes.</p>", unsafe_allow_html=True)
     else:
         for r in recent_ratings:
             u = next((uu for uu in users if uu.get("user_id") == r.get("user_id")), {})
