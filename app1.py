@@ -341,16 +341,19 @@ if page == "Home":
         series_list = fetch_series(limit=200) 
         series_names = {str(s.get("id")): s.get("name") for s in series_list} 
         sel = st.selectbox("Series", options=list(series_names.keys()), format_func=lambda x: series_names[x])
-
         date = st.date_input("Fecha", value=datetime.now().date()) 
         time = st.time_input("Hora", key="time_input", value=st.session_state.get("time_input", datetime.now().time()))
         dt = datetime.combine(date, time)
-        platform = st.text_input("Plataforma (ej. Netflix)") 
-        
+
+        current_series = next((s for s in series_list if str(s["id"]) == str(sel)), None)
+        available_platforms = current_series.get("platforms") or []
+        if available_platforms:
+            platform = st.selectbox("Plataforma", options=available_platforms)
+        else:
+            platform = st.text_input("Plataforma (ej. Netflix)")
+
         all_users = fetch_users()
-        
         user_map = {u['name']: u['user_id'] for u in all_users if u.get('name')}
-        
         selected_names = st.multiselect(
             "Invita participantes", 
             options=list(user_map.keys()),
@@ -708,7 +711,7 @@ if page == "Watch Parties":
                     host_username = host_resp.data[0].get("name")
 
             # 3️⃣ Obtener los participantes (convertir user_id → username)
-            participants_resp = supabase.table("participants").select("*").eq("watchparty_id", wp_id).execute()
+            participants_resp = supabase.table("watchparties").select("participants").eq("watchparty_id", wp_id).execute()
             participants = [p.get("participant") for p in (participants_resp.data or [])]
 
             usernames = []
@@ -999,36 +1002,30 @@ if page == "Plataformas":
     </style>
     """, unsafe_allow_html=True)
 
-    # 💠 Contenedor de plataformas
+    #Contenedor de plataformas
     st.markdown("<div class='platform-container'>", unsafe_allow_html=True)
 
-    for name in plats:
+for name in plats:
         try:
-            # Series en esta plataforma
-            ids_res = supabase.table("series_platform").select("id").eq("platform", name).execute()
-            ids = [r["id"] for r in (ids_res.data or [])]
+            series_res = supabase.table("series").select("*").cs("platforms", [name]).execute()
+            series_list = series_res.data or []
 
-            if ids:
-                series_res = supabase.table("series").select("*").cs("platforms", [name]).execute()
-                series_list = series_res.data or []
-
-                # Bloque HTML
+            if series_list:
+                lis_html = "".join([f"<li>{s.get('name')} ({s.get('year')})</li>" for s in series_list])
+                
                 st.markdown(
                     f"""
-                    <div class='platform-card {name.replace(' ', '').replace('+','Plus')}'>
+                    <div class='platform-card'>
                         <div class='platform-title'>{name}</div>
                         <ul class='platform-list'>
-                            {''.join([f"<li>{s.get('name')} ({s.get('year')})</li>" for s in series_list])}
+                            {lis_html}
                         </ul>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
         except Exception as e:
-            st.error(f"Error cargando platforma {name}: {e}")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
+            st.error(f"Error cargando plataforma {name}: {e}")
 
 # -----------------------
 # My Watchlist
