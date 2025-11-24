@@ -348,7 +348,7 @@ if page == "Home":
         current_series = next((s for s in series if str(s["id"]) == str(sel)), None)
         
         available_platforms = current_series.get("platforms") or []
-        
+        st.info(f"DEBUG: Platforms found = {available_platforms}")
         if available_platforms:
             platform = st.selectbox("Plataforma", options=available_platforms)
         else:
