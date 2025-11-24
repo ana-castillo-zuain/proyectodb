@@ -10,16 +10,86 @@ load_dotenv()
 # -----------------------
 # Config / client setup
 # -----------------------
+# -----------------------
+# Config / client setup
+# -----------------------
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-DEFAULT_USER_ID = os.environ.get("DEFAULT_USER_ID", "user_1")
+# ID inicial (fijo)
+INITIAL_USER_ID = os.environ.get("DEFAULT_USER_ID", "U1")
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    st.error("Set SUPABASE_URL and SUPABASE_KEY as environment variables.")
-    st.stop()
+# Inicializar estado de usuario si no existe
+if "current_user_id" not in st.session_state:
+    st.session_state["current_user_id"] = INITIAL_USER_ID
+
+# ⚠️ CLAVE: Ahora DEFAULT_USER_ID cambia según lo que elijas en el dropdown
+DEFAULT_USER_ID = st.session_state["current_user_id"]
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+if "show_tutorial" not in st.session_state:
+    st.session_state["show_tutorial"] = True  # Activado por defecto
+
+def show_page_guide(page_name):
+    """Muestra una guía descartable específica para cada página"""
+    
+    # Si el usuario desactivó el tutorial, no mostrar nada
+    if not st.session_state.get("show_tutorial"):
+        return
+
+    # Diccionario con el contenido de ayuda por página
+    guides = {
+        "Home": """
+            ### 🏠 Bienvenido al Home
+            - **Izquierda:** Mira las series que son tendencia hoy.
+            - **Derecha:** Crea una nueva *Watch Party*. Selecciona la serie, la fecha y tus amigos.
+            - **Tip:** ¡Si la serie tiene plataformas cargadas, aparecerán en un menú desplegable!
+        """,
+        "Series": """
+            ### 🔎 Catálogo de Series
+            - **Filtros:** Usa los controles superiores para buscar por género, año o cantidad de episodios.
+            - **Detalles:** Haz clic en "Ver detalles" para ver la sinopsis, plataformas y reseñas.
+            - **Acciones:** Desde el detalle puedes agregar series a tu *Watchlist* o dejar tu propia reseña.
+        """,
+        "Watch Parties": """
+            ### 🍿 Tus Eventos
+            - Aquí verás todas las watchparties programadas.
+            - **Unirse:** Si te invitaron, verás un botón para confirmar asistencia.
+            - **Lobby:** Cuando llegue la hora, entra al "Lobby" para ver quiénes están conectados.
+        """,
+        "Plataformas": """
+            ### 📺 Dónde ver
+            - Explora el catálogo filtrado por servicios de streaming (Netflix, Disney+, etc.).
+            - Haz clic en una plataforma para ver qué series están disponibles allí.
+        """,
+        "Party Lobby": """
+            ### 🛋️ Sala de Espera (Lobby)
+            - Aquí es donde se reúnen antes de dar "Play".
+            - Verifica que todos tus amigos estén en la lista de "Participantes en sala".
+        """,
+        "Trending": """
+            ### 🎞️ Series en tendencia
+            - Aquí podrás ver las series mejor rateadas y las favoritos de tus amigos.
+            - Encuentra las reseñas que compartieron y las series que les gustaron.
+        """,
+        "Mi Watchlist": """
+            ### 📝 Qué ver a continuación
+            - Lleva registro de tus series pendientes, ratealas, o márcalas como vista.
+            - No hace falta perderse en un mar de series por ver, están todas aquí.
+        """
+    }
+
+    content = guides.get(page_name)
+    
+    if content:
+        with st.info("💡 Guía rápida (puedes ocultar esto en el menú lateral)"):
+            col_text, col_btn = st.columns([4, 1])
+            with col_text:
+                st.markdown(content)
+            with col_btn:
+                if st.button("Entendido, ocultar guías", key=f"close_{page_name}"):
+                    st.session_state["show_tutorial"] = False
+                    st.rerun()
 # -----------------------
 # Utility helpers
 # -----------------------
@@ -208,39 +278,71 @@ st.markdown("<h1 style='margin-bottom:0.2rem'>ScreenMates </h1>", unsafe_allow_h
 
 
 # Sidebar
+
 with st.sidebar:
     st.header("Perfil")
+    
     users = fetch_users()
-    user = next((u for u in users if u.get("user_id") == DEFAULT_USER_ID), None)
-    if user:
-        st.subheader(user.get("name", DEFAULT_USER_ID))
+    
+    current_user_obj = next((u for u in users if u.get("user_id") == DEFAULT_USER_ID), None)
+    
+    if current_user_obj:
+        st.subheader(f"Hola, {current_user_obj.get('name')} 👋")
     else:
         st.subheader(DEFAULT_USER_ID)
 
     st.write("Pestañas")
-    default_page = st.session_state.get("page", "Home")
     pages = ["Home", "Series", "Watch Parties", "Trending", "Plataformas", "Mi Watchlist", "Party Lobby"]
 
-# Si la página actual no existe en la lista (por ejemplo, Party Lobby), usamos "Home" por defecto
     default_page = st.session_state.get("page", "Home")
     if default_page not in pages:
         default_page = "Home"
 
     page = st.radio(
-        "",
+        "Ir a:",
         pages,
         index=pages.index(default_page)
     )
-st.session_state["page"] = page
+
+    st.session_state["page"] = page
+
+    st.markdown("---")
+    st.write("🔧 Configuración")
+
+    if st.checkbox("Mostrar guías de ayuda", value=st.session_state.get("show_tutorial", True)):
+        st.session_state["show_tutorial"] = True
+    else:
+        st.session_state["show_tutorial"] = False
+
+    st.markdown("### 👤 Cambiar Usuario")
+    
+    name_to_id = {u['name']: u['user_id'] for u in users if u.get('name')}
+    id_to_name = {v: k for k, v in name_to_id.items()}
+
+    current_name_selection = id_to_name.get(DEFAULT_USER_ID)
+    
+    if current_name_selection:
+        selected_user_name = st.selectbox(
+            "Sesión activa:",
+            options=list(name_to_id.keys()),
+            index=list(name_to_id.keys()).index(current_name_selection),
+            key="user_switcher_sidebar"
+        )
+
+        new_user_id = name_to_id[selected_user_name]
+        if new_user_id != st.session_state["current_user_id"]:
+            st.session_state["current_user_id"] = new_user_id
+            st.toast(f"Cambiando perfil a {selected_user_name}...", icon="🔄")
+            st.rerun()
 
 #-----------------------
 #Home Overview FORMA GRID
 #-----------------------
 
 if page == "Home": 
-    st.subheader("Mis watchlists y acciones rápidas") 
+    st.subheader("Mis watchlists y acciones rápidas")
     col1, col2 = st.columns([3, 1])
-
+    show_page_guide("Home")
     # 🔹 Trending Section 
     with col1: 
         st.markdown("## 🎬 En tendencia") 
@@ -390,9 +492,7 @@ if page == "Home":
 # -----------------------
 if page == "Series":
     st.header("Catálogo de Series")
-    if st.button("🔄 Refrescar Datos (Borrar Cache)"):
-        st.cache_data.clear()
-        st.rerun()
+    show_page_guide("Series")
     selected_series = None
     all_series = fetch_series(limit=500)
     series = all_series 
@@ -660,6 +760,7 @@ if page == "Series":
 # -----------------------
 if page == "Watch Parties":
     st.header("🍿 Watch Parties")
+    show_page_guide("Watch Parties")
     wps = fetch_watchparties()
     all_users = fetch_users()
     user_map = {u["user_id"]: u["name"] for u in all_users}
@@ -769,7 +870,7 @@ if page == "Watch Parties":
 # -----------------------
 if page == "Party Lobby":
     wp_id = st.session_state.get("open_party", None)
-
+    show_page_guide("Party Lobby")
     if not wp_id:
         st.warning("No hay party seleccionada. Ingresa el lobby en la sección de Watch Parties.")
     else:
@@ -828,7 +929,7 @@ if page == "Party Lobby":
 # -----------------------
 if page == "Trending":
     st.header("🔥 Trending & Recomendaciones")
-
+    show_page_guide("Trending")
     series = fetch_series(limit=200)
     users = fetch_users()
     top_rated = sorted(series, key=lambda s: (s.get("rating") or 0), reverse=True)[:10]
@@ -947,6 +1048,7 @@ if page == "Trending":
 if page == "Plataformas":
     st.header("Plataformas")
     st.write("💡Platformas disponibles")
+    show_page_guide("Plataformas")
 
     plats = fetch_platforms()
 
@@ -1038,6 +1140,7 @@ if page == "Plataformas":
 # -----------------------
 if page == "Mi Watchlist":
     st.header("Mi Watchlist / Mis ratings")
+    show_page_guide("Mi Watchlist")
     my_ratings = supabase.table("ratings").select("*").eq("user_id", DEFAULT_USER_ID).execute().data or []
     watchlist = [r for r in my_ratings if r.get("status") == "watchlist"]
     watched = [r for r in my_ratings if r.get("status") == "watched"]
