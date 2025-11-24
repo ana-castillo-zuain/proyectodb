@@ -348,7 +348,7 @@ if page == "Home":
         current_series = next((s for s in series if str(s["id"]) == str(sel)), None)
         
         available_platforms = current_series.get("platforms") or []
-        st.info(f"DEBUG: Platforms found = {available_platforms}")
+
         if available_platforms:
             platform = st.selectbox("Plataforma", options=available_platforms)
         else:
@@ -390,7 +390,9 @@ if page == "Home":
 # -----------------------
 if page == "Series":
     st.header("Catálogo de Series")
-
+    if st.button("🔄 Refrescar Datos (Borrar Cache)"):
+        st.cache_data.clear()
+        st.rerun()
     selected_series = None
     all_series = fetch_series(limit=500)
     series = all_series 
