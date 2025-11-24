@@ -338,8 +338,12 @@ if page == "Home":
         if 'series' not in locals():
             series = fetch_series(limit=200)
 
-        series_names = {str(s.get("id")): s.get("name") for s in series} 
-        sel = st.selectbox("Series", options=list(series_names.keys()), format_func=lambda x: series_names[x])
+        series_map = {str(s["id"]): s for s in series} 
+        sel = st.selectbox(
+        "Series", 
+        options=list(series_map.keys()), 
+        format_func=lambda x: series_map[x]["name"]
+    )
 
         current_series = next((s for s in series if str(s["id"]) == str(sel)), None)
         
@@ -348,7 +352,6 @@ if page == "Home":
         if available_platforms:
             platform = st.selectbox("Plataforma", options=available_platforms)
         else:
-
             platform = st.text_input("Plataforma (ej. Netflix)")
 
         date = st.date_input("Fecha", value=datetime.now().date()) 
