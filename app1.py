@@ -61,46 +61,48 @@ def fetch_ratings_for_series(id):
     return resp.data or []
 
 def create_watchparty(series_id: int, host: str, time_iso: str, platforms: str, participants: List[str]):
-    # 1. Generate ID (W1, W2, etc.)
-    last_wp = supabase.table("watchparties").select("watchparty_id").order("watchparty_id", desc=True).limit(1).execute()
-    if last_wp.data:
-        last_id = last_wp.data[0]["watchparty_id"]
-        try:
-            next_num = int(last_id.replace("W", "")) + 1
-        except:
-            next_num = len(last_wp.data) + 1
-    else:
-        next_num = 1
-    new_id = f"W{next_num}"
+    try:
+        res_ids = supabase.table("watchparties").select("watchparty_id").execute()
+        all_ids = [r["watchparty_id"] for r in (res_ids.data or [])]
+        
+        max_num = 0
+        for wid in all_ids:
+            try:
+                num = int(wid.replace("W", ""))
+                if num > max_num: max_num = num
+            except:
+                continue
+        
+        new_id = f"W{max_num + 1}"
 
-    # 2. Insert with Array
-    # Note: We insert the participants LIST directly. Supabase handles the format.
-    payload = {
-        "watchparty_id": new_id,
-        "series": series_id,
-        "host": host,
-        "time": time_iso,
-        "platforms": platforms,
-        "participants": participants 
-    }
+        clean_participants = list(participants) if participants else []
 
-    res = supabase.table("watchparties").insert(payload).execute()
-    if getattr(res, "error", None):
-        return False, res.error
+        payload = {
+            "watchparty_id": new_id,
+            "series": series_id,
+            "host": host,
+            "time": time_iso,
+            "platforms": platforms,
+            "participants": clean_participants 
+        }
 
-    fetch_watchparties.clear()
-    return True, res.data[0]
+        res = supabase.table("watchparties").insert(payload).execute()
+
+        if hasattr(res, 'error') and res.error:
+            return False, f"Supabase Error: {res.error}"
+            
+        return True, res.data[0]
+
+    except Exception as e:
+        return False, f"Python Error: {str(e)}"
 
 def add_participant_to_watchparty(watchparty_id: str, participant_id: str):
-    # 1. Get current array
     current_wp = supabase.table("watchparties").select("participants").eq("watchparty_id", watchparty_id).single().execute()
     current_list = current_wp.data.get("participants") or []
-    
-    # 2. Append if not exists
+
     if participant_id not in current_list:
         current_list.append(participant_id)
-        
-        # 3. Update row
+
         res = supabase.table("watchparties").update({"participants": current_list}).eq("watchparty_id", watchparty_id).execute()
         fetch_watchparties.clear()
         return True, None
@@ -108,15 +110,12 @@ def add_participant_to_watchparty(watchparty_id: str, participant_id: str):
         return False, "User already in party"
 
 def remove_participant_from_watchparty(watchparty_id: str, participant_id: str):
-    # 1. Get current array
     current_wp = supabase.table("watchparties").select("participants").eq("watchparty_id", watchparty_id).single().execute()
     current_list = current_wp.data.get("participants") or []
     
-    # 2. Remove if exists
     if participant_id in current_list:
         current_list.remove(participant_id)
-        
-        # 3. Update row
+
         res = supabase.table("watchparties").update({"participants": current_list}).eq("watchparty_id", watchparty_id).execute()
         fetch_watchparties.clear()
         return res
@@ -332,37 +331,45 @@ if page == "Home":
 
 
         st.markdown("</div>", unsafe_allow_html=True)
-        
-    
 
-    # 🔹 Quick Watchparty Form 
     with col2: 
         st.markdown("### 🍿 Crea una watch party") 
-        series_list = fetch_series(limit=200) 
-        series_names = {str(s.get("id")): s.get("name") for s in series_list} 
+
+        if 'series' not in locals():
+            series = fetch_series(limit=200)
+
+        series_names = {str(s.get("id")): s.get("name") for s in series} 
         sel = st.selectbox("Series", options=list(series_names.keys()), format_func=lambda x: series_names[x])
+
+        current_series = next((s for s in series if str(s["id"]) == str(sel)), None)
+        
+        available_platforms = current_series.get("platforms") or []
+        
+        if available_platforms:
+            platform = st.selectbox("Plataforma", options=available_platforms)
+        else:
+
+            platform = st.text_input("Plataforma (ej. Netflix)")
+
         date = st.date_input("Fecha", value=datetime.now().date()) 
         time = st.time_input("Hora", key="time_input", value=st.session_state.get("time_input", datetime.now().time()))
         dt = datetime.combine(date, time)
 
-        current_series = next((s for s in series_list if str(s["id"]) == str(sel)), None)
-        available_platforms = current_series.get("platforms") or []
-        if available_platforms:
-            platform = st.selectbox("Plataforma", options=available_platforms)
-        else:
-            platform = st.text_input("Plataforma (ej. Netflix)")
-
         all_users = fetch_users()
         user_map = {u['name']: u['user_id'] for u in all_users if u.get('name')}
+        
         selected_names = st.multiselect(
             "Invita participantes", 
             options=list(user_map.keys()),
             placeholder="Selecciona amigos..."
         )
-        
+
         if st.button("Crear watchparty"): 
+            st.info("Procesando...")
+
             invited_ids = [user_map[name] for name in selected_names]
-            ok, wp = create_watchparty(
+
+            ok, msg = create_watchparty(
                 int(sel), 
                 DEFAULT_USER_ID, 
                 dt.isoformat(), 
@@ -371,10 +378,9 @@ if page == "Home":
             ) 
             
             if ok: 
-                st.success("Watchparty creada!✅") 
+                st.success("Watchparty creada exitosamente! ✅") 
             else: 
-                st.error(f"Error: {wp}")
-                
+                st.error(f"❌ Falló: {msg}")
 
 # -----------------------
 # Series catalogue
@@ -650,6 +656,8 @@ if page == "Series":
 if page == "Watch Parties":
     st.header("🍿 Watch Parties")
     wps = fetch_watchparties()
+    all_users = fetch_users()
+    user_map = {u["user_id"]: u["name"] for u in all_users}
 
     if not wps:
         st.info("No hay watch parties todavía.")
@@ -692,10 +700,8 @@ if page == "Watch Parties":
 
         st.markdown("<div class='wp-grid'>", unsafe_allow_html=True)
         for wp in wps:
-            # Obtener el ID de la watchparty
             wp_id = wp.get("watchparty_id") or wp.get("id")
 
-            # 1️⃣ Obtener la serie asociada a la watchparty
             series_id = wp.get("series")
             series_obj = {}
             if series_id:
@@ -703,23 +709,18 @@ if page == "Watch Parties":
                 if series_resp.data:
                     series_obj = series_resp.data[0]
 
-            # 2️⃣ Obtener el nombre del anfitrión (host)
             host_username = wp.get("host")
             if host_username:
                 host_resp = supabase.table("users").select("name").eq("user_id", wp.get("host")).execute()
                 if host_resp.data:
                     host_username = host_resp.data[0].get("name")
 
-            # 3️⃣ Obtener los participantes (convertir user_id → username)
             participants_resp = supabase.table("watchparties").select("participants").eq("watchparty_id", wp_id).execute()
             participants = [p.get("participant") for p in (participants_resp.data or [])]
 
-            usernames = []
-            if participants:
-                users_resp = supabase.table("users").select("user_id, name").in_("user_id", participants).execute()
-                usernames = [u.get("name") for u in (users_resp.data or [])]
+            p_ids = wp.get("participants") or []
+            usernames = [user_map.get(pid, "Usuario desconocido") for pid in p_ids]
 
-            # 4️⃣ Mostrar la card
             with st.container():
                 st.markdown(f"""
                 <div class='wp-card'>
@@ -1005,27 +1006,27 @@ if page == "Plataformas":
     #Contenedor de plataformas
     st.markdown("<div class='platform-container'>", unsafe_allow_html=True)
 
-for name in plats:
-        try:
-            series_res = supabase.table("series").select("*").cs("platforms", [name]).execute()
-            series_list = series_res.data or []
+    for name in plats:
+            try:
+                series_res = supabase.table("series").select("*").contains("platforms", [name]).execute()
+                series_list = series_res.data or []
 
-            if series_list:
-                lis_html = "".join([f"<li>{s.get('name')} ({s.get('year')})</li>" for s in series_list])
-                
-                st.markdown(
-                    f"""
-                    <div class='platform-card'>
-                        <div class='platform-title'>{name}</div>
-                        <ul class='platform-list'>
-                            {lis_html}
-                        </ul>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-        except Exception as e:
-            st.error(f"Error cargando plataforma {name}: {e}")
+                if series_list:
+                    lis_html = "".join([f"<li>{s.get('name')} ({s.get('year')})</li>" for s in series_list])
+                    
+                    st.markdown(
+                        f"""
+                        <div class='platform-card'>
+                            <div class='platform-title'>{name}</div>
+                            <ul class='platform-list'>
+                                {lis_html}
+                            </ul>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+            except Exception as e:
+                st.error(f"Error cargando plataforma {name}: {e}")
 
 # -----------------------
 # My Watchlist
