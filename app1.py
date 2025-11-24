@@ -45,9 +45,15 @@ def fetch_users():
 
 @st.cache_data(show_spinner=False)
 def fetch_platforms():
-    resp = supabase.table("series_platform").select("platform").execute()
-    plats = list({r["platform"] for r in (resp.data or [])})
-    return plats
+    resp = supabase.table("series").select("platforms").execute()
+    data = resp.data or []
+    unique_plats = set()
+    for row in data:
+        if row.get("platforms"): 
+            for p in row["platforms"]:
+                unique_plats.add(p)
+                
+    return sorted(list(unique_plats))
 
 @st.cache_data(show_spinner=False)
 def fetch_ratings_for_series(id):
@@ -55,59 +61,66 @@ def fetch_ratings_for_series(id):
     return resp.data or []
 
 def create_watchparty(series_id: int, host: str, time_iso: str, platforms: str, participants: List[str]):
-
+    # 1. Generate ID (W1, W2, etc.)
     last_wp = supabase.table("watchparties").select("watchparty_id").order("watchparty_id", desc=True).limit(1).execute()
     if last_wp.data:
         last_id = last_wp.data[0]["watchparty_id"]
-        next_num = int(last_id.replace("W", "")) + 1
+        try:
+            next_num = int(last_id.replace("W", "")) + 1
+        except:
+            next_num = len(last_wp.data) + 1
     else:
         next_num = 1
     new_id = f"W{next_num}"
 
-    # 2️⃣ Crear registro
+    # 2. Insert with Array
+    # Note: We insert the participants LIST directly. Supabase handles the format.
     payload = {
         "watchparty_id": new_id,
         "series": series_id,
         "host": host,
         "time": time_iso,
-        "platforms": platforms
+        "platforms": platforms,
+        "participants": participants 
     }
 
     res = supabase.table("watchparties").insert(payload).execute()
     if getattr(res, "error", None):
         return False, res.error
 
-    wp = res.data[0]
-    wp_id = wp["watchparty_id"]
-
-    # 3️⃣ Insertar participantes
-    for p in participants:
-        supabase.table("participants").insert({
-            "watchparty_id": wp_id,
-            "participant": p
-        }).execute()
-
     fetch_watchparties.clear()
-    return True, wp
+    return True, res.data[0]
 
+def add_participant_to_watchparty(watchparty_id: str, participant_id: str):
+    # 1. Get current array
+    current_wp = supabase.table("watchparties").select("participants").eq("watchparty_id", watchparty_id).single().execute()
+    current_list = current_wp.data.get("participants") or []
+    
+    # 2. Append if not exists
+    if participant_id not in current_list:
+        current_list.append(participant_id)
+        
+        # 3. Update row
+        res = supabase.table("watchparties").update({"participants": current_list}).eq("watchparty_id", watchparty_id).execute()
+        fetch_watchparties.clear()
+        return True, None
+    else:
+        return False, "User already in party"
 
-def add_participant_to_watchparty(watchparty_id: int, participant_id: str):
-    res = supabase.table("participants").insert({
-        "watchparty_id": watchparty_id,
-        "participant": participant_id
-    }).execute()
-    fetch_watchparties.clear()
-    return res
-
-def remove_participant_from_watchparty(watchparty_id: int, participant_id: str):
-    """Elimina al usuario de una watchparty si ya está dentro"""
-    res = supabase.table("participants").delete()\
-        .eq("watchparty_id", watchparty_id)\
-        .eq("participant", participant_id)\
-        .execute()
-    fetch_watchparties.clear()
-    return res
-
+def remove_participant_from_watchparty(watchparty_id: str, participant_id: str):
+    # 1. Get current array
+    current_wp = supabase.table("watchparties").select("participants").eq("watchparty_id", watchparty_id).single().execute()
+    current_list = current_wp.data.get("participants") or []
+    
+    # 2. Remove if exists
+    if participant_id in current_list:
+        current_list.remove(participant_id)
+        
+        # 3. Update row
+        res = supabase.table("watchparties").update({"participants": current_list}).eq("watchparty_id", watchparty_id).execute()
+        fetch_watchparties.clear()
+        return res
+    return None
 
 def add_rating(user_id: str, id: int, stars: int, review: str = "", status: str = "watched"):
     payload = {
@@ -120,7 +133,6 @@ def add_rating(user_id: str, id: int, stars: int, review: str = "", status: str 
     res = supabase.table("ratings").insert(payload).execute()
     fetch_ratings_for_series.clear()
     return res
-
 
 def add_to_watchlist(user_id: str, id: int):
     return add_rating(user_id, id, stars=None, review="", status="watchlist")
@@ -333,16 +345,33 @@ if page == "Home":
         date = st.date_input("Fecha", value=datetime.now().date()) 
         time = st.time_input("Hora", key="time_input", value=st.session_state.get("time_input", datetime.now().time()))
         dt = datetime.combine(date, time)
-
         platform = st.text_input("Plataforma (ej. Netflix)") 
-        invited = st.text_input("Invita participantes (user_id separados con coma)") 
+        
+        all_users = fetch_users()
+        
+        user_map = {u['name']: u['user_id'] for u in all_users if u.get('name')}
+        
+        selected_names = st.multiselect(
+            "Invita participantes", 
+            options=list(user_map.keys()),
+            placeholder="Selecciona amigos..."
+        )
+        
         if st.button("Crear watchparty"): 
-            ok, wp = create_watchparty(int(sel), DEFAULT_USER_ID, dt.isoformat(), platform, [p.strip() for p in invited.split(",") if p.strip()]) 
+            invited_ids = [user_map[name] for name in selected_names]
+            ok, wp = create_watchparty(
+                int(sel), 
+                DEFAULT_USER_ID, 
+                dt.isoformat(), 
+                platform, 
+                invited_ids 
+            ) 
+            
             if ok: 
                 st.success("Watchparty creada!✅") 
             else: 
-                st.error(f"Error creando watchparty: {wp}")
-
+                st.error(f"Error: {wp}")
+                
 
 # -----------------------
 # Series catalogue
@@ -405,10 +434,12 @@ if page == "Series":
         col1, col2 = st.columns([2, 1])
 
         with col1:
+            plat_list = selected_series.get('platforms') or []
+            plat_str = ", ".join(plat_list)
             st.markdown(f"*Género:* {selected_series.get('genre', '—')}")
             st.markdown(f"*Año:* {selected_series.get('year', '—')}")
             st.markdown(f"*Episodios:* {selected_series.get('episodes', '—')}")
-            st.markdown(f"*Plataformas:* {', '.join([p['platform'] for p in (supabase.table('series_platform').select('platform').eq('id', selected_series.get('id')).execute().data or [])]) or '—'}")
+            st.markdown(f"*Plataformas:* {plat_str}")
             st.markdown(f"*Rating promedio:* {selected_series.get('rating', '—')}")
 
             st.markdown("### Reseñas de la comunidad")
@@ -978,7 +1009,7 @@ if page == "Plataformas":
             ids = [r["id"] for r in (ids_res.data or [])]
 
             if ids:
-                series_res = supabase.table("series").select("*").in_("id", ids).execute()
+                series_res = supabase.table("series").select("*").cs("platforms", [name]).execute()
                 series_list = series_res.data or []
 
                 # Bloque HTML
