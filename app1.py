@@ -504,7 +504,7 @@ if page == "Series":
         with col2:
             selected_year = st.selectbox("Filtrar por año", ["Todos"] + [str(y) for y in years_list])
         with col3:
-            filter_by_my_platforms = st.checkbox("Series disponibles en mis plataformas)")
+            filter_by_my_platforms = st.checkbox("Series disponibles en mis plataformas")
             if filter_by_my_platforms and not my_platforms_set:
                  st.caption("⚠️ No tienes plataformas configuradas en tu perfil.")
             ep_min, ep_max = st.slider(
