@@ -336,21 +336,18 @@ with st.sidebar:
             st.rerun()
 
 #-----------------------
-#Home Overview FORMA GRID
+#Home Overview
 #-----------------------
 
 if page == "Home": 
     st.subheader("Mis watchlists y acciones rápidas")
     col1, col2 = st.columns([3, 1])
     show_page_guide("Home")
-    # 🔹 Trending Section 
     with col1: 
         st.markdown("## 🎬 En tendencia") 
         series = fetch_series(limit=20) 
         sorted_trend = sorted(series, key=lambda s: (s.get("rating") or 0), reverse=True)[:15]
-       
-
-        # 💠 Estilos del grid
+ 
         st.markdown("""
         <style>
         .series-grid {
@@ -395,12 +392,6 @@ if page == "Home":
         </style>
         """, unsafe_allow_html=True)
 
-
-
-
-
-
-        # 💠 Contenedor del grid
         st.markdown("<div class='series-grid'>", unsafe_allow_html=True)
         
 
@@ -483,9 +474,9 @@ if page == "Home":
             ) 
             
             if ok: 
-                st.success("Watchparty creada exitosamente! ✅") 
+                st.success("Watchparty creada exitosamente!") 
             else: 
-                st.error(f"❌ Falló: {msg}")
+                st.error(f"Falló: {msg}")
 
 # -----------------------
 # Series catalogue
@@ -496,6 +487,8 @@ if page == "Series":
     selected_series = None
     all_series = fetch_series(limit=500)
     series = all_series 
+    user_data = supabase.table("users").select("platforms").eq("user_id", DEFAULT_USER_ID).single().execute()
+    my_platforms_set = set(user_data.data.get("platforms") or [])
     with st.expander("🔎 Buscar o filtrar catálogo", expanded=False):
         search_query = st.text_input("Buscar por título", placeholder="Ej: Breaking Bad")
 
@@ -511,37 +504,51 @@ if page == "Series":
         with col2:
             selected_year = st.selectbox("Filtrar por año", ["Todos"] + [str(y) for y in years_list])
         with col3:
+            filter_by_my_platforms = st.checkbox("Series disponibles en mis plataformas)")
+            if filter_by_my_platforms and not my_platforms_set:
+                 st.caption("⚠️ No tienes plataformas configuradas en tu perfil.")
             ep_min, ep_max = st.slider(
                 "Rango de episodios",
                 min_value=int(min_eps),
                 max_value=int(max_eps),
                 value=(int(min_eps), int(max_eps))
             )
-        # Solo aplicar filtros si el usuario escribe o selecciona algo
-        if search_query or selected_genre != "Todos" or selected_year != "Todos" or episodes_values != "Todos":
-            filtered = []
+        filtered = []
+        
+        filters_active = (
+            search_query or 
+            selected_genre != "Todos" or 
+            selected_year != "Todos" or 
+            episodes_values != "Todos" or 
+            filter_by_my_platforms 
+        )
+
+        if filters_active:
             for s in all_series:
                 name_match = not search_query or search_query.lower() in s.get("name", "").lower()
                 genre_match = selected_genre == "Todos" or s.get("genre") == selected_genre
                 year_match = selected_year == "Todos" or str(s.get("year")) == selected_year
                 episodes_match = ep_min <= (s.get("episodes") or 0) <= ep_max
+                platform_match = True
+                if filter_by_my_platforms:
+                    series_plats_set = set(s.get("platforms") or [])
+                    if my_platforms_set.isdisjoint(series_plats_set):
+                        platform_match = False
 
-                if name_match and genre_match and year_match and episodes_match:
+                if name_match and genre_match and year_match and episodes_match and platform_match:
                     filtered.append(s)
 
             series = filtered
 
             if not series:
-                st.warning("No se encontraron series que coincidan con los filtros.")
+                st.warning("No se encontraron series con estos filtros.")
 
     users = fetch_users()
-
-    # Si hay una serie abierta (guardada en session_state)
     series_to_open = st.session_state.get("open_series", None)
     if series_to_open:
         selected_series = fetch_series_by_id(series_to_open)
 
-    # Detalles de serie
+
     if selected_series:
         st.markdown("---")
         st.subheader(selected_series.get("name"))
@@ -567,14 +574,11 @@ if page == "Series":
 
             st.markdown("### Acciones")
             if st.button("Agregar a mi watchlist"):
-                # 🧹 Eliminar cualquier registro previo de esa serie para este usuario
                 supabase.table("ratings") \
                     .delete() \
                     .eq("user_id", DEFAULT_USER_ID) \
                     .eq("id", selected_series.get("id")) \
                     .execute()
-
-                # 💾 Insertar nuevamente con estado "watchlist"
                 res = supabase.table("ratings").insert({
                     "user_id": DEFAULT_USER_ID,
                     "id": selected_series.get("id"),
@@ -622,7 +626,7 @@ if page == "Series":
 
     # Catálogo
     else:
-        if st.button("🏠 Volver al Home"):
+        if st.button("Volver al Home"):
             st.session_state["page"] = "Home"
             st.query_params["page"] = "Home"
             st.rerun()
@@ -837,7 +841,6 @@ if page == "Watch Parties":
                 </div>
                 """, unsafe_allow_html=True)
 
-                # 🧩 Si el usuario ya está en la party
                 if DEFAULT_USER_ID in participants:
                     st.success("✅ Ya estás en esta party!")
 
@@ -853,7 +856,6 @@ if page == "Watch Parties":
                             st.success("Dejaste la party 👋")
                             st.rerun()
 
-                # 🧩 Si NO está en la party todavía
                 else:
                     if st.button("Unirse", key=f"join_{wp_id}"):
                         ok, err = add_participant_to_watchparty(wp_id, DEFAULT_USER_ID)
@@ -888,7 +890,6 @@ if page == "Party Lobby":
         if not wp:
             st.error("❌ No se encontró esta Watch Party en la base de datos.")
         else:
-            # ✅ Buscar la serie asociada correctamente
             series_obj = {}
             series_id = wp.get("series")
             if series_id:
@@ -896,14 +897,12 @@ if page == "Party Lobby":
                 if s_res.data:
                     series_obj = s_res.data[0]
 
-            # ✅ Obtener nombre del anfitrión
             host_username = wp.get("host")
             if host_username:
                 host_res = supabase.table("users").select("name").eq("user_id", wp.get("host")).execute()
                 if host_res.data:
                     host_username = host_res.data[0].get("name")
 
-            # ✅ Obtener nombres de los participantes
             participants_resp = supabase.table("participants").select("participant").eq("watchparty_id", wp_id).execute()
             participant_ids = [p.get("participant") for p in (participants_resp.data or [])]
 
@@ -912,7 +911,6 @@ if page == "Party Lobby":
                 users_res = supabase.table("users").select("user_id, name").in_("user_id", participant_ids).execute()
                 participant_names = [u.get("name") for u in (users_res.data or [])]
 
-            # 🖥️ Mostrar datos
             st.header(f"🎬 Watch Party — {series_obj.get('name', '(No title)')}")
             st.markdown(f"**Anfitrión:** {host_username or '—'}")
             st.markdown(f"**Hora:** {wp.get('time', '—')}")
@@ -999,7 +997,6 @@ if page == "Trending":
     </style>
     """, unsafe_allow_html=True)
 
-    # 🧱 Contenedor principal
     st.markdown("<div class='trend-container'>", unsafe_allow_html=True)
 
     # 🔹 COLUMNA IZQUIERDA – Top Rated
@@ -1151,7 +1148,6 @@ if page == "Mi Watchlist":
         st.write(f"- {s.get('name')}")
 
         if st.button(f"Marcar como vista", key=f"mark_{r.get('id')}"):
-            # 🔹 Eliminar primero el registro con status="watchlist"
             supabase.table("ratings") \
                 .delete() \
                 .eq("user_id", DEFAULT_USER_ID) \
@@ -1159,7 +1155,6 @@ if page == "Mi Watchlist":
                 .eq("status", "watchlist") \
                 .execute()
 
-            # 🔹 Luego agregar la serie como vista
             add_rating(DEFAULT_USER_ID, r.get("id"), stars=7, review="", status="watched")
 
             st.rerun()
